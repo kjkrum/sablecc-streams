@@ -279,17 +279,10 @@ Macro:LexerBody1
                 }
                 else
                 {
-                    if(this.text.length() > 0)
-                    {
-                        throw new LexerException(
-                            new InvalidToken(this.text.substring(0, 1), start_line + 1, start_pos + 1),
-                            "[" + (start_line + 1) + "," + (start_pos + 1) + "]" +
-                            " Unknown token: " + this.text);
-                    }
-
                     @SuppressWarnings("hiding") EOF token = new EOF(
                         start_line + 1,
                         start_pos + 1);
+                    token.setText(this.text.toString());
                     return token;
                 }
             }
