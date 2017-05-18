@@ -279,11 +279,11 @@ Macro:LexerBody1
                 }
                 else
                 {
-                    @SuppressWarnings("hiding") EOF token = new EOF(
-                        start_line + 1,
-                        start_pos + 1);
-                    token.setText(this.text.toString());
-                    return token;
+                    final String text = this.text.toString();
+                    return new EOF(start_line + 1,
+                                   start_pos + 1,
+                                   text,
+                                   !text.isEmpty());
                 }
             }
         }
