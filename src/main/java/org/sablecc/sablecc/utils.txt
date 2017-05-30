@@ -245,6 +245,7 @@ public abstract class Token extends Node
     private int line;
     private int pos;
 
+    @Override
     public String getText()
     {
         return this.text;
@@ -302,6 +303,7 @@ Macro:Node
 package $0$;
 
 import java.util.*;
+import java.lang.reflect.Field;
 
 @SuppressWarnings("nls")
 public abstract class Node implements Switchable, Cloneable
@@ -373,6 +375,58 @@ public abstract class Node implements Switchable, Cloneable
         }
 
         return clone;
+    }
+
+    public String getText() {
+        final StringBuilder sb = new StringBuilder();
+        for(final Token token : getTokens()) {
+            sb.append(token.getText());
+        }
+        return sb.toString();
+    }
+
+    public List<Token> getTokens() {
+        final List<Token> list = new LinkedList<Token>();
+        getTokens(this, list);
+        Collections.sort(list, new Comparator<Token>() {
+            public int compare(final Token t1, final Token t2) {
+                if(t1.getLine() != t2.getLine()) {
+                    return t1.getLine() - t2.getLine();
+                }
+                else {
+                    return t1.getPos() - t2.getPos();
+                }
+            }
+        });
+        return list;
+    }
+
+    private static void getTokens(final Node node, final List<Token> list) {
+        if(node instanceof Token) {
+            list.add((Token) node);
+            return;
+        }
+        final Field[] fields = node.getClass().getDeclaredFields();
+        try {
+            for(final Field field : fields) {
+                field.setAccessible(true);
+                if(List.class.isAssignableFrom(field.getType())) {
+                    //noinspection unchecked
+                    final List<Node> children = (List<Node>) field.get(node);
+                    for(final Node child : children) {
+                        getTokens(child, list);
+                    }
+                }
+                else {
+                    final Node child = (Node) field.get(node);
+                    getTokens(child, list);
+                }
+            }
+        }
+        catch(IllegalAccessException e) {
+            // shouldn't happen
+            throw new RuntimeException(e);
+        }
     }
 }
 
