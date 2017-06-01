@@ -152,8 +152,6 @@ import $1$.*;
 @SuppressWarnings("nls")
 public final class EOF extends Token
 {
-    private boolean synthetic;
-
     public EOF()
     {
         setText("");
@@ -161,30 +159,15 @@ public final class EOF extends Token
 
     public EOF(int line, int pos)
     {
-        setLine(line);
-        setPos(pos);
         setText("");
-    }
-
-    public EOF(int line, int pos, String text, boolean synthetic) {
         setLine(line);
         setPos(pos);
-        setText(text);
-        setSynthetic(synthetic);
-    }
-
-    public void setSynthetic(boolean synthetic) {
-        this.synthetic = synthetic;
-    }
-
-    public boolean isSynthetic() {
-        return synthetic;
     }
 
     @Override
     public Object clone()
     {
-        return new EOF(getLine(), getPos(), getText(), isSynthetic());
+        return new EOF(getLine(), getPos());
     }
 
     @Override
