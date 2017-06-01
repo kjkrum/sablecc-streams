@@ -144,30 +144,6 @@ public class Lexer
 
             if(c != -1)
             {
-                switch(c)
-                {
-                case 10:
-                    if(this.cr)
-                    {
-                        this.cr = false;
-                    }
-                    else
-                    {
-                        this.line++;
-                        this.pos = 0;
-                    }
-                    break;
-                case 13:
-                    this.line++;
-                    this.pos = 0;
-                    this.cr = true;
-                    break;
-                default:
-                    this.pos++;
-                    this.cr = false;
-                    break;
-                }
-
                 this.text.append((char) c);
 
                 do
@@ -279,16 +255,30 @@ Macro:LexerBody1
                 }
                 else
                 {
-                    final String text = this.text.toString();
-                    return new EOF(start_line + 1,
-                                   start_pos + 1,
-                                   text,
-                                   !text.isEmpty());
+                    if(this.text.length() > 0)
+                    {
+                        return new InvalidToken(text.toString(), start_line + 1, start_pos + 1);
+                    }
+                    return new EOF(start_line + 1, start_pos + 1);
                 }
             }
         }
     }
 
+    public void pushBack(final Token token) throws IOException {
+        if(this.token != null) {
+            unread(this.token);
+        }
+        this.token = token;
+    }
+
+    public int skipChar() throws IOException {
+        if(this.token != null) {
+            unread(this.token);
+            this.token = null;
+        }
+        return getChar();
+    }
 
 $
 
@@ -316,6 +306,32 @@ Macro:LexerBody2
         if(result == -1)
         {
             this.eof = true;
+        }
+
+        switch(result)
+        {
+        case -1:
+            break;
+        case 10:
+            if(this.cr)
+            {
+                this.cr = false;
+            }
+            else
+            {
+                this.line++;
+                this.pos = 0;
+            }
+            break;
+        case 13:
+            this.line++;
+            this.pos = 0;
+            this.cr = true;
+            break;
+        default:
+            this.pos++;
+            this.cr = false;
+            break;
         }
 
         return result;
