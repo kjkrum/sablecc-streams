@@ -4,27 +4,28 @@ A fork of SableCC 3.7 that can parse continuous streams containing a mixture of 
 The license and related files are included in the source tree as resources because they can be displayed by the software. They can be found in the `org.sablecc.sablecc` package.
 
 ## How it works
-Standard SableCC expects a single terminal production followed by an `EOF`. In this version, `EOF` can also represent the end of a production. When the lexer encounters an unrecognized token, it produces an `EOF` instead of throwing a `LexerException`. This is how the parser recognizes the end of a production followed by garbage. When the parser encounters an `ERROR` action, it tests what the action would be if the next token were `EOF`. If the hypothetical action is `ACCEPT`, the parser synthesizes an `EOF` and returns the production. This is how the parser recognizes the end of a production followed by a recognized token.
-
-There are some limitations to this approach. See [Issues](#issues).
+Standard SableCC has a strict lexer that throws an exception when it encounters an unrecognized token, and a parser that expects a single terminal production followed immediately by an `EOF`. In this version, the lexer can emit `InvalidToken` and the parser skips unrecognized tokens and incomplete productions, backtracking and throwing out one character at a time to ensure nothing is missed. `LexerException` and `ParserException` are never thrown unless something is overridden to do so. (I may eliminate them completely before I consider this version finished.)
 
 ## Grammar
-The grammar must include an empty alternation of the terminal production. The parser needs to be able to return an empty production if it reads `EOF` before reading a non-empty production.
+There is no longer any requirement that the grammar include an empty alternation of the terminal production. If you want garbage to be returned for debugging purposes, include a single-character garbage token and corresponding production.
 
 ```
+Tokens
+    junk = [32..127] ; /* Or whatever. */
+
 Productions
-    event = {foo} foo | {bar} bar | {empty} ;
+    event = {foo} foo | {bar} bar | {junk} junk ;
 ```
 
-If responsiveness is important, avoid productions that include repetition. Consider a language that accepts A+. A call to `parse()` would not return until the stream is closed or the lexer encounters an unrecognized token. Even if an unrecognized token is eventually expected, the caller would not receive the first production until the unrecognized token arrives. If the language accepted A instead of A+, then each A would be returned as it arrives.
+If responsiveness is important, avoid productions that include repetition. Consider a language that accepts A+. A call to `parse()` would not return until the lexer emits `EOF` or `InvalidToken`. Even if an unrecognized token is eventually expected, the caller would not receive the first production until the unrecognized token arrives. If the language accepted A instead of A+, then each A would be returned immediately.
 
 ## Usage
+A `Start` may contain a null production or a null `EOF`, but not both. The presence of a non-null `EOF` indicates the end of the stream.
 ```
 while(true) {
     final Start start = parser.parse();
     start.apply(visitor);
-    if(!start.getEOF().isSynthetic()) {
-        /* Actual end of stream. */
+    if(start.getEOF() != null) {
         break;
     }
 }
@@ -58,19 +59,3 @@ To use SableCC Streams in a Maven project, build with [sablecc-maven-plugin](htt
 </plugin>
 ```
 
-## Issues
-I don't know enough about formal language theory to describe these things in proper terms, so I'll explain by way of example. These languages and inputs would not be accepted by standard SableCC. They *should* be accepted by this version, but aren't.
-
-In each of these examples, the problem is that the parser can't backtrack. I may eventually implement this, but I'm putting it off until I need it.
-
-Example 1
-
-- Language accepts AB | C | ABCD
-- Input is ABCX
-- Parser should push the tokens of C back into the lexer, and return AB.
-
-Example 2
-
-- Language accepts BC | ABCD
-- Input is ABCX
-- Parser should push everything back into the lexer, throw out the first token of A, and see what lexes out.
