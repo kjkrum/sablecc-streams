@@ -12,6 +12,9 @@ package $0$;
 
 import $1$.*;
 
+/**
+ * A parsed production.
+ */
 @SuppressWarnings("nls")
 public final class Start extends Node
 {
@@ -45,6 +48,12 @@ public final class Start extends Node
         ((Analysis) sw).caseStart(this);
     }
 
+    /**
+     * Gets the production. Returns null if EOF is reached before parsing a
+     * complete production.
+     *
+     * @return the production, or null
+     */
     public $2$ get$2$()
     {
         return this._$3$_;
@@ -70,6 +79,12 @@ public final class Start extends Node
         this._$3$_ = node;
     }
 
+    /**
+     * Gets the token representing EOF. Returns null if EOF has not been
+     * reached.
+     *
+     * @return the EOF token, or null
+     */
     public EOF getEOF()
     {
         return this._eof_;
@@ -385,6 +400,9 @@ public abstract class Node implements Switchable, Cloneable
     }
 
     private static void getTokens(final Node node, final List<Token> list) {
+        if(node == null) {
+            return;
+        }
         if(node instanceof Token) {
             list.add((Token) node);
             return;
