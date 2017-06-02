@@ -123,6 +123,13 @@ Macro:ParserCommon
         return s.state;
     }
 
+    private Node cloneNode()
+    {
+        State s = (State) stack.previous();
+        stack.next();
+        return (Node) ((Node) s.nodes.get(0)).clone();
+    }
+
     private ArrayList<Object> pop()
     {
         return ((State) this.stack.previous()).nodes;
@@ -135,9 +142,14 @@ Macro:ParserCommon
         return this.converter.index;
     }
 
+    private final Deque<Token> tokensSinceAccept = new LinkedList<Token>();
+    private Node lastAcceptedNode;
+
     @SuppressWarnings("unchecked")
     public Start parse() throws ParserException, LexerException, IOException
     {
+        tokensSinceAccept.clear();
+        lastAcceptedNode = null;
         push(0, null$0$);
         List<Node> ign = null;
         while(true)
@@ -163,17 +175,19 @@ Macro:ParserCommon
             this.last_token = this.lexer.peek();
 
             int index = index(this.lexer.peek());
-            populateAction(index);
+            lookupAction(index);
 
             switch(this.action[0])
             {
                 case SHIFT:
-		    {
-		        ArrayList<Object> list = new ArrayList<Object>();
-		        list.add(this.lexer.next());
+		            {
+		                final Token token = lexer.next();
+		                ArrayList<Object> list = new ArrayList<Object>();
+                        list.add(token);
                         push(this.action[1], list$1$);
+                        tokensSinceAccept.push(token);
                     }
-		    break;
+		            break;
                 case REDUCE:
                     {
                         int reduction = this.action[1];
@@ -187,35 +201,69 @@ Macro:ParseReduceElseIf
 $
 
 Macro:ParserParseTail
+
+                        lookupAction(EOF_INDEX);
+                        if(action[0] == ACCEPT) {
+                            lastAcceptedNode = cloneNode();
+                            tokensSinceAccept.clear();
+                        }
                     }
                     break;
                 case ACCEPT:
+                    // an accepted production followed immediately by InvalidToken or EOF
                     {
-                        EOF node2 = (EOF) this.lexer.next();
-                        $0$ node1 = ($0$) pop().get(0);
-                        Start node = new Start(node1, node2);
-                        return node;
+                        final $0$ node1 = ($0$) pop().get(0);
+                        final Token node2 = this.lexer.next();
+                        if(node2 instanceof InvalidToken) {
+                            lexer.pushBack(node2);
+                            lexer.skipChar();
+                            return new Start(node1, null);
+                        }
+                        return new Start(node1, (EOF) node2);
                     }
                 case ERROR:
-                    populateAction(EOF_INDEX);
-                    if(action[0] == ACCEPT) {
-                        $0$ node = ($0$) pop().get(0);
-                        EOF eof = new EOF(lexer.peek().getLine(),
-                                          lexer.peek().getPos(),
-                                          "",
-                                          true);
-                        return new Start(node, eof);
+                    // 1. an accepted production followed by an unexpected token; or...
+                    // 2. an accepted production followed by a partial longer production and an InvalidToken,
+                    //    EOF, or unexpected token; or...
+                    // 3. a partial production followed by an InvalidToken, EOF, or unexpected token; or...
+                    // 4. just an InvalidToken, EOF, or unexpected token
+                    //
+                    // Wat do:
+                    // 1. return accepted
+                    // 2. push back, don't skip, return accepted
+                    // 3. push back, skip, continue
+                    // 4. return if EOF; otherwise skip and continue
+
+                    if(lastAcceptedNode != null) {
+                        pushBackTokensSinceAccept();
+                        $0$ node = ($0$) lastAcceptedNode;
+                        return new Start(node, null);
                     }
-                    throw new ParserException(this.last_token,
-                        "[" + this.last_line + "," + this.last_pos + "] " +
-                        Parser.errorMessages[Parser.errors[this.action[1]]]);
+                    else if(tokensSinceAccept.size() > 0) {
+                        pushBackTokensSinceAccept();
+                        lexer.skipChar();
+                        continue;
+                    }
+                    else if(lexer.next() instanceof EOF) {
+                        return new Start(null, (EOF) lexer.next());
+                    }
+                    else {
+                        lexer.skipChar();
+                        continue;
+                    }
             }
+        }
+    }
+
+    private void pushBackTokensSinceAccept() throws IOException {
+        while(!tokensSinceAccept.isEmpty()) {
+            lexer.pushBack(tokensSinceAccept.pop());
         }
     }
 
     private final int EOF_INDEX = index(new EOF());
 
-    private void populateAction(final int index) {
+    private void lookupAction(final int index) {
         final int state = state();
         this.action[0] = Parser.actionTable[state][0][1];
         this.action[1] = Parser.actionTable[state][0][2];
@@ -538,6 +586,12 @@ Macro:TokenIndexTail
 
     @Override
     public void caseEOF(@SuppressWarnings("unused") EOF node)
+    {
+        this.index = $0$;
+    }
+
+    @Override
+    public void caseInvalidToken(@SuppressWarnings("unused") InvalidToken node)
     {
         this.index = $0$;
     }
