@@ -187,7 +187,9 @@ public class DepthFirstAdapter extends AnalysisAdapter
     public void caseStart(Start node)
     {
         inStart(node);
-        node.get$2$().apply(this);
+        if(node.get$2$() != null) {
+            node.get$2$().apply(this);
+        }
         if(node.getEOF() != null) {
             node.getEOF().apply(this);
         }
@@ -233,7 +235,9 @@ public class ReversedDepthFirstAdapter extends AnalysisAdapter
         if(node.getEOF() != null) {
             node.getEOF().apply(this);
         }
-        node.get$2$().apply(this);
+        if(node.get$2$() != null) {
+            node.get$2$().apply(this);
+        }
         outStart(node);
     }
 
