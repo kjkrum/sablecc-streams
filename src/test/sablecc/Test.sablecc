@@ -1,0 +1,14 @@
+Package test;
+
+Tokens
+    a = 'a' ;
+    b = 'b' ;
+    c = 'c' ;
+    d = 'd' ;
+
+Productions
+    alt = {ab} ab | {abcd} abcd ;
+    ab = a b ;
+    abcd = a b c d;
+
+

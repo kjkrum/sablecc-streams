@@ -123,16 +123,11 @@ Macro:ParserCommon
         return s.state;
     }
 
-    private Node cloneNode()
-    {
-        State s = (State) stack.previous();
-        stack.next();
-        return (Node) ((Node) s.nodes.get(0)).clone();
-    }
-
     private ArrayList<Object> pop()
     {
-        return ((State) this.stack.previous()).nodes;
+        final State state = (State) stack.previous();
+        stack.remove();
+        return state.nodes;
     }
 
     private int index(Switchable token)
@@ -142,14 +137,9 @@ Macro:ParserCommon
         return this.converter.index;
     }
 
-    private final Deque<Token> tokensSinceAccept = new LinkedList<Token>();
-    private Node lastAcceptedNode;
-
     @SuppressWarnings("unchecked")
     public Start parse() throws ParserException, LexerException, IOException
     {
-        tokensSinceAccept.clear();
-        lastAcceptedNode = null;
         push(0, null$0$);
         List<Node> ign = null;
         while(true)
@@ -185,41 +175,28 @@ Macro:ParserCommon
 		                ArrayList<Object> list = new ArrayList<Object>();
                         list.add(token);
                         push(this.action[1], list$1$);
-                        tokensSinceAccept.push(token);
                     }
 		            break;
                 case REDUCE:
                     {
-                        int reduction = this.action[1];
-                        if(reduction < 500) reduce_0(reduction);
-
-$
-
-Macro:ParseReduceElseIf
-                        else if(reduction < $0$) reduce_$1$(reduction);
-
+                        reduce();
+                    }
+                    break;
 $
 
 Macro:ParserParseTail
 
-                        lookupAction(EOF_INDEX);
-                        if(action[0] == ACCEPT) {
-                            lastAcceptedNode = cloneNode();
-                            tokensSinceAccept.clear();
-                        }
-                    }
-                    break;
                 case ACCEPT:
                     // an accepted production followed immediately by InvalidToken or EOF
                     {
-                        final $0$ node1 = ($0$) pop().get(0);
-                        final Token node2 = this.lexer.next();
-                        if(node2 instanceof InvalidToken) {
-                            lexer.pushBack(node2);
+                        final $0$ prod = ($0$) pop().get(0);
+                        final Token next = this.lexer.next();
+                        if(next instanceof InvalidToken) {
+                            lexer.pushBack(next);
                             lexer.skipChar();
-                            return new Start(node1, null);
+                            return new Start(prod, null);
                         }
-                        return new Start(node1, (EOF) node2);
+                        return new Start(prod, (EOF) next);
                     }
                 case ERROR:
                     // 1. an accepted production followed by an unexpected token; or...
@@ -227,37 +204,49 @@ Macro:ParserParseTail
                     //    EOF, or unexpected token; or...
                     // 3. a partial production followed by an InvalidToken, EOF, or unexpected token; or...
                     // 4. just an InvalidToken, EOF, or unexpected token
-                    //
-                    // Wat do:
-                    // 1. return accepted
-                    // 2. push back, don't skip, return accepted
-                    // 3. push back, skip, continue
-                    // 4. return if EOF; otherwise skip and continue
 
-                    if(lastAcceptedNode != null) {
-                        pushBackTokensSinceAccept();
-                        $0$ node = ($0$) lastAcceptedNode;
-                        return new Start(node, null);
-                    }
-                    else if(tokensSinceAccept.size() > 0) {
-                        pushBackTokensSinceAccept();
+                    // index 0 is dummy
+                    if(stack.previousIndex() > 0) {
+                        if(index == EOF_INDEX) {
+                            popAndPushBack();
+                        }
+                        while(stack.previousIndex() > 0) {
+                            lookupAction(EOF_INDEX);
+                            if(action[0] == ACCEPT) {
+                                final $0$ prod = ($0$) pop().get(0);
+                                return new Start(prod, null);
+                            }
+                            else if(action[0] == REDUCE) {
+                                reduce();
+                            }
+                            else {
+                                popAndPushBack();
+                            }
+                        }
+                        // pushed back everything with no result
                         lexer.skipChar();
-                        continue;
                     }
-                    else if(lexer.next() instanceof EOF) {
+                    else if(lexer.peek() instanceof EOF) {
                         return new Start(null, (EOF) lexer.next());
                     }
                     else {
+                        // InvalidToken or some valid but unexpected token
                         lexer.skipChar();
-                        continue;
                     }
             }
         }
     }
 
-    private void pushBackTokensSinceAccept() throws IOException {
-        while(!tokensSinceAccept.isEmpty()) {
-            lexer.pushBack(tokensSinceAccept.pop());
+    private void popAndPushBack() throws IOException {
+        final ArrayList<Object> nodes = pop();
+        if(nodes != null) {
+            for(final Object o : nodes) {
+                final Node node = (Node) o;
+                final List<Token> tokens = node.getTokens();
+                for(int i = tokens.size() - 1; i >= 0; --i) {
+                    lexer.pushBack(tokens.get(i));
+                }
+            }
         }
     }
 
@@ -292,9 +281,19 @@ Macro:ParserParseTail
         }
     }
 
+    private void reduce() throws IOException, LexerException, ParserException {
+        int reduction = this.action[1];
+        if(reduction < 500) reduce_0(reduction);
+$
+
+Macro:ParseReduceElseIf
+        else if(reduction < $0$) reduce_$1$(reduction);
 $
 
 Macro:ParserReduceHead
+
+    } // end of reduce()
+
     private void reduce_$0$(int reduction) throws IOException, LexerException, ParserException
     {
         switch(reduction)
