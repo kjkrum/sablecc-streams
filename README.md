@@ -7,20 +7,14 @@ The license and related files are included in the source tree as resources becau
 Standard SableCC has a strict lexer that throws an exception when it encounters an unrecognized token, and a parser that expects a single terminal production followed immediately by an `EOF`. In this version, the lexer can emit `InvalidToken` and the parser skips unrecognized tokens and incomplete productions, backtracking and throwing out one character at a time to ensure nothing is missed. `LexerException` and `ParserException` are never thrown unless something is overridden to do so. (I may eliminate them completely before I consider this version finished.)
 
 ## Grammar
-There is no longer any requirement that the grammar include an empty alternation of the terminal production. If you want garbage to be returned for debugging purposes, include a single-character garbage token and corresponding production.
+Unrecognized tokens and incomplete productions are thrown away.  If you want them to be returned for debugging purposes, define a single-character garbage token and a corresponding production.
 
-```
-Tokens
-    junk = [32..127] ; /* Or whatever. */
-
-Productions
-    event = {foo} foo | {bar} bar | {junk} junk ;
-```
-
-If responsiveness is important, avoid productions that include repetition. Consider a language that accepts A+. A call to `parse()` would not return until the lexer emits `EOF` or `InvalidToken`. Even if an unrecognized token is eventually expected, the caller would not receive the first production until the unrecognized token arrives. If the language accepted A instead of A+, then each A would be returned immediately.
+If responsiveness is important, avoid productions that include repetition. Consider a language that accepts A+. A call to `parse()` would not return until the lexer emits `EOF` or `InvalidToken`. Even if garbage is eventually expected, the caller would not receive the first A until the first invalid token arrives. If the language accepted A instead of A+, then each A would be returned immediately.
 
 ## Usage
-A `Start` may contain a null production or a null `EOF`, but not both. The presence of a non-null `EOF` indicates the end of the stream.
+Ensure that your `Lexer` uses a `PushbackReader` with a sufficiently large buffer to accommodate backtracking.
+
+A `Start` may have a null production or a null `EOF`, but not both. The presence of a non-null `EOF` indicates the end of the stream.
 ```
 while(true) {
     final Start start = parser.parse();
@@ -30,6 +24,9 @@ while(true) {
     }
 }
 ```
+
+## Performance
+The original SableCC 3.7 code contains many small inefficiencies, such as the use of `StringBuffer` instead of the preferred `StringBuilder`. Even so, the performance will probably be sufficient for my needs. The performance unit test parses 10 million characters containing around 60% garbage and over 1.1 million recognized productions of 2-6 characters each. On my i7-3770, this test runs in around 3.6 seconds.
 
 ## Maven
 To use SableCC Streams in a Maven project, build with [sablecc-maven-plugin](https://github.com/johnny-bui/sablecc-maven-plugin) version 2.0-beta.6-SNAPSHOT or later.

@@ -5,10 +5,15 @@ Tokens
     b = 'b' ;
     c = 'c' ;
     d = 'd' ;
+    e = 'e' ;
+    f = 'f' ;
+
 
 Productions
-    alt = {ab} ab | {abcd} abcd ;
+    alt = {ab} ab | {abcd} abcd | {abcdef} abcdef ;
     ab = a b ;
-    abcd = a b c d;
+    abcd = a b c d ;
+    abcdef = a b c d e f ;
+
 
 
