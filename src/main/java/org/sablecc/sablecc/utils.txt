@@ -236,6 +236,9 @@ Macro:Token
 
 package $0$;
 
+import java.util.Collections;
+import java.util.List;
+
 @SuppressWarnings("nls")
 public abstract class Token extends Node
 {
@@ -290,6 +293,16 @@ public abstract class Token extends Node
     void replaceChild(@SuppressWarnings("unused") Node oldChild, @SuppressWarnings("unused") Node newChild)
     {
         throw new RuntimeException("Not a child.");
+    }
+
+    @Override
+    public List<Token> getTokens() {
+        return Collections.singletonList(this);
+    }
+
+    @Override
+    protected void getTokens(final List<Token> tokens) {
+        tokens.add(this);
     }
 }
 
@@ -384,9 +397,9 @@ public abstract class Node implements Switchable, Cloneable
     }
 
     public List<Token> getTokens() {
-        final List<Token> list = new LinkedList<Token>();
-        getTokens(this, list);
-        Collections.sort(list, new Comparator<Token>() {
+        final List<Token> tokens = new LinkedList<Token>();
+        getTokens(tokens);
+        Collections.sort(tokens, new Comparator<Token>() {
             public int compare(final Token t1, final Token t2) {
                 if(t1.getLine() != t2.getLine()) {
                     return t1.getLine() - t2.getLine();
@@ -396,31 +409,24 @@ public abstract class Node implements Switchable, Cloneable
                 }
             }
         });
-        return list;
+        return tokens;
     }
 
-    private static void getTokens(final Node node, final List<Token> list) {
-        if(node == null) {
-            return;
-        }
-        if(node instanceof Token) {
-            list.add((Token) node);
-            return;
-        }
-        final Field[] fields = node.getClass().getDeclaredFields();
+    protected void getTokens(final List<Token> tokens) {
+        final Field[] fields = getClass().getDeclaredFields();
         try {
             for(final Field field : fields) {
                 field.setAccessible(true);
                 if(List.class.isAssignableFrom(field.getType())) {
                     //noinspection unchecked
-                    final List<Node> children = (List<Node>) field.get(node);
+                    final List<Node> children = (List<Node>) field.get(this);
                     for(final Node child : children) {
-                        getTokens(child, list);
+                        child.getTokens(tokens);
                     }
                 }
                 else {
-                    final Node child = (Node) field.get(node);
-                    getTokens(child, list);
+                    final Node child = (Node) field.get(this);
+                    child.getTokens(tokens);
                 }
             }
         }
